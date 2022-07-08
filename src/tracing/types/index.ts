@@ -22,7 +22,9 @@ export const collections = {
   LAND: 'land',
   APOSTLE: 'apostle',
   DRILL: 'drill',
+  SYNTHESISDRILL: 'synthesisdrill',
   MIRRORKITTY: 'mirrorkitty',
+  EQUIPMENT: 'equipment',
   OTHER: 'other',
 } as const;
 
@@ -36,7 +38,7 @@ export interface ConfigCollection {
 }
 
 export const configKey = {
-  indexerBlockBumber: 'indexer_block_number', // not included
+  indexerBlockBumber: 'indexer_block_number',
   latestBlockBumber: 'latest_block_number',
   parserBlockBumber: 'parser_block_number',
 } as const;

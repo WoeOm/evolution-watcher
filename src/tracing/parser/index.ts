@@ -4,6 +4,7 @@ import { BulkWriteOptions, Db, MongoDBNamespace, Timestamp } from 'mongodb';
 import { collections, ERC721Collection, ParserBundle, ParserHandle } from '../types';
 import { isZeroAddress } from '../utils/address';
 import { ObjectOwnershipIface } from './abi/interface';
+import { trusted } from 'mongoose';
 
 export function parseTokenId(tokenId: string): string {
   const tokenIdBn = BigNumber.from(tokenId);
@@ -17,7 +18,12 @@ export function parseTokenId(tokenId: string): string {
     case 3:
       return collections.MIRRORKITTY;
     case 4:
+    case 5:
+      // 4 - drill
+      // 5 - synthesis drill
       return collections.DRILL;
+    case 6:
+      return collections.EQUIPMENT;
     default:
       return collections.OTHER;
   }
@@ -56,7 +62,7 @@ export const eventParser: ParserBundle = {
               },
             },
           ],
-          { ...options },
+          { upsert: true, ...options },
         );
       },
     },
