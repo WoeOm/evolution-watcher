@@ -39,6 +39,7 @@ export interface ConfigCollection {
 
 export const configKey = {
   indexerBlockBumber: 'indexer_block_number',
+  subIndexerBlockBumber: 'sub_indexer_block_number',
   latestBlockBumber: 'latest_block_number',
   parserBlockBumber: 'parser_block_number',
 } as const;
@@ -108,7 +109,7 @@ export interface ERC721Collection {
 export type ParserHandle = (db: Db, description: LogDescription, log: LogsCollection, options?: BulkWriteOptions) => Promise<void>;
 
 export type ParserBundle = Record<
-  string,
+  string, // address lowercase
   {
     interface: Interface;
     events: Record<string, ParserHandle>;

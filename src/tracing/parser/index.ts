@@ -4,7 +4,6 @@ import { BulkWriteOptions, Db, MongoDBNamespace, Timestamp } from 'mongodb';
 import { collections, ERC721Collection, ParserBundle, ParserHandle } from '../types';
 import { isZeroAddress } from '../utils/address';
 import { ObjectOwnershipIface } from './abi/interface';
-import { trusted } from 'mongoose';
 
 export function parseTokenId(tokenId: string): string {
   const tokenIdBn = BigNumber.from(tokenId);
@@ -30,12 +29,13 @@ export function parseTokenId(tokenId: string): string {
 }
 
 export const eventParser: ParserBundle = {
+  // OBJECTOWNERSHIP
   '0x3788df4fdc026f5ea91a333fcf7ced7a52c92471': {
     interface: ObjectOwnershipIface,
     events: {
       'Transfer(address,address,uint256)': async (db, description, log, options: BulkWriteOptions = {}) => {
-        const from = description.args[0];
-        const to = description.args[1];
+        const from = description.args[0].toLowerCase();
+        const to = description.args[1].toLowerCase();
         const tokenId = description.args[2].toHexString();
         const nftType = parseTokenId(tokenId);
         const collection = db.collection<ERC721Collection>(nftType);

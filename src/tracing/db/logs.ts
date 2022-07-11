@@ -31,12 +31,15 @@ export class LogsDatabase {
     return result;
   }
 
-  async removeLogs(fromBlock: number, toBlock: number, options: BulkWriteOptions = {}): Promise<DeleteResult> {
+  async removeLogs(fromBlock: number, toBlock: number, address: string[], options: BulkWriteOptions = {}): Promise<DeleteResult> {
     const result = await this._logsCollection.deleteMany(
       {
         block_number: {
           $gte: fromBlock,
           $lte: toBlock,
+        },
+        address: {
+          $in: address.map((o) => o.toLowerCase()),
         },
       },
       {
@@ -82,7 +85,7 @@ export class LogsDatabase {
 
   rpcLogsConvert(rpcLog: RPCLogsCollection): LogsCollection {
     return {
-      address: rpcLog.address,
+      address: rpcLog.address.toLowerCase(),
       block_hash: rpcLog.blockHash,
       block_number: BigNumber.from(rpcLog.blockNumber).toNumber(),
       data: rpcLog.blockHash,

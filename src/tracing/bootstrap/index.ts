@@ -1,7 +1,7 @@
 import { DBClient } from '../db/client';
 import { ConfigDatabase } from '../db/config';
 import { configKey, LandId, landId, LogsCollection } from '../types';
-import { rpc_getBlockNumber, rpc_getFilterLogs, rpc_getLogs, rpc_newFilter } from '../utils/rpc';
+import { rpc_getBlockNumber, rpc_getFilterLogs, rpc_getLogs, rpc_newFilter, wss_getLogs } from '../utils/rpc';
 import { BigNumber } from 'ethers';
 import { logger } from '../utils/logger';
 import { LogsDatabase } from '../db/logs';
@@ -24,11 +24,11 @@ export class TracingBootstrap {
   _rpc: string;
 
   _getBlockNumberWait = 7000;
-  _scanContractLogsWait = 6000;
+  _scanContractLogsWait = 1000;
   _parseLogsWait = 6000;
   // _parseLogsWait = [1000, 7000]; // syncing, synced
 
-  _scanContractLogsStep = 500;
+  _scanContractLogsStep = 200;
   _parseLogsStep = 500;
   _parseLogsBatchSize = 100; // logs count
 
@@ -102,22 +102,6 @@ export class TracingBootstrap {
 
       logger.info(`⛏️ | ${this._name} | scanContractLogs | ${fromBlock} - ${toBlock}, diff ${lastestBlockConfig.value - toBlock}`);
 
-      // const logs = await rpc_getLogs(this._rpc, [
-      //   {
-      //     fromBlock,
-      //     toBlock,
-      //     address: this._address,
-      //   },
-      // ]);
-
-      // const dbLogs = logs.result.map((log) => this._logsDatabase.rpcLogsConvert(log));
-
-      // logger.info(`⛏️ | ${this._name} | scanContractLogs | find ${logs?.result.length} logs`);
-
-      // if (dbLogs && dbLogs.length > 0) {
-      //   await this._logsDatabase.insertLogs(dbLogs, { session });
-      // }
-
       await this.scanContractLogsHandle(fromBlock, toBlock, this._address, { session });
 
       await this._configDatabase.updateValue(this._instanceId, configKey.indexerBlockBumber, toBlock, { session });
@@ -128,6 +112,43 @@ export class TracingBootstrap {
     } finally {
       await session.endSession();
       setTimeout(() => this.scanContractLogs(), this._scanContractLogsWait);
+    }
+  }
+
+  async subScanContractLogs(address: string[]) {
+    const session = this._client.getClient().startSession();
+
+    try {
+      const step = this._scanContractLogsStep;
+      const indexerConfig = await this._configDatabase.findConfig(this._instanceId, configKey.subIndexerBlockBumber);
+      const lastestBlockConfig = await this._configDatabase.findConfig(this._instanceId, configKey.latestBlockBumber);
+
+      const indexerBlockNumber = indexerConfig.value;
+      const lastestBlockNumber = lastestBlockConfig.value;
+
+      const fromBlock = indexerBlockNumber + 1;
+      const toBlock = fromBlock + step - 1 >= lastestBlockNumber ? lastestBlockNumber : fromBlock + step - 1;
+
+      // check is touch lateast
+      if (fromBlock > lastestBlockNumber) {
+        logger.info(`⛏️ | ${this._name} | subScanContractLogs | ${fromBlock} is latest, waiting...`);
+        return;
+      }
+
+      session.startTransaction();
+
+      logger.info(`⛏️ | ${this._name} | subScanContractLogs | ${fromBlock} - ${toBlock}, diff ${lastestBlockConfig.value - toBlock}`);
+
+      await this.scanContractLogsHandle(fromBlock, toBlock, address, { session });
+
+      await this._configDatabase.updateValue(this._instanceId, configKey.subIndexerBlockBumber, toBlock, { session });
+      await session.commitTransaction();
+    } catch (error) {
+      logger.error(`❤️ | ${this._name} | subScanContractLogs, ${error} `);
+      await session.abortTransaction();
+    } finally {
+      await session.endSession();
+      setTimeout(() => this.subScanContractLogs(address), this._scanContractLogsWait);
     }
   }
 
@@ -150,28 +171,6 @@ export class TracingBootstrap {
         return;
       }
 
-      // const logsCursor = await this._logsDatabase.getLogs(fromBlock, toBlock);
-      // let logsCount = 0;
-      // while (await logsCursor.hasNext()) {
-      //   const log = await logsCursor.next();
-      //   // logger.info(`✍️ | ${this._name} | parseLogs | blockNumber:${log.block_number} logIndex: ${log.log_index} `);
-      //   logsCount++;
-      //   const parser = eventParser[log.address.toLowerCase()];
-      //   if (parser) {
-      //     try {
-      //       const logDescription = parser.interface.parseLog({ data: log.data, topics: log.topics });
-      //       const hundle = parser.events[logDescription.signature];
-      //       if (hundle) {
-      //         await hundle(this._db, logDescription, log, { session });
-      //       }
-      //     } catch (error) {
-      //       logger.error(`❤️ | ${this._name} | parseLogs::hundle | blockNumber:${log.block_number} logIndex: ${log.log_index}, ${error} `);
-      //     }
-      //   }
-      // }
-      // if (logsCount > 0) {
-      //   logger.info(`✍️ | ${this._name} | parseLogs | get ${logsCount} logs`);
-      // }
       const toBlock = await this._logsDatabase.getBlockNumberByCount(fromBlock, indexerBlockNumber, this._parseLogsBatchSize);
       if (toBlock) {
         await this.parseLogsHandle(fromBlock, toBlock, { session });
@@ -229,8 +228,7 @@ export class TracingBootstrap {
     const dbLogs = logs.result.map((log) => this._logsDatabase.rpcLogsConvert(log));
 
     logger.info(`⛏️ | ${this._name} | scanContractLogs | find ${logs?.result.length} logs`);
-
-    const removeLogsResult = await this._logsDatabase.removeLogs(fromBlock, toBlock, options);
+    const removeLogsResult = await this._logsDatabase.removeLogs(fromBlock, toBlock, address, options);
     if (removeLogsResult.deletedCount) {
       logger.info(`⛏️ | ${this._name} | scanContractLogs | ${fromBlock} - ${toBlock} | remove ${removeLogsResult.deletedCount} logs`);
     }

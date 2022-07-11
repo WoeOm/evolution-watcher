@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { PRCWrapper, RPCLogsCollection } from '../types';
+import { BigNumber, providers, EventFilter } from 'ethers';
 
 const ETHEREUM_RPC_HEADER = {
   'Content-Type': 'application/json',
@@ -30,6 +31,10 @@ export const rpc_getBlockNumber = (rpc) => {
 
 export const rpc_getLogs = (rpc: string, params: any[]): Promise<RPCGetLogsResult> => {
   return rpcCall(rpc, 'eth_getLogs', params);
+};
+
+export const wss_getLogs = (provider: providers.BaseProvider, params: providers.Filter): Promise<Array<providers.Log>> => {
+  return provider.getLogs(params);
 };
 
 export const rpc_getFilterLogs = (rpc: string, params: any[]) => {
