@@ -22,10 +22,11 @@ export const collections = {
   LAND: 'land',
   APOSTLE: 'apostle',
   DRILL: 'drill',
-  SYNTHESISDRILL: 'synthesisdrill',
+  SYNTHESISDRILL: 'synthesis_drill',
   MIRRORKITTY: 'mirrorkitty',
   EQUIPMENT: 'equipment',
   OTHER: 'other',
+  LAND_AUCTION: 'land_auction',
 } as const;
 
 export type LandId = typeof landId[keyof typeof landId];
@@ -51,6 +52,9 @@ export interface PRCWrapper {
   id: number;
 }
 
+export interface UpdatedAt {
+  updated_at: string;
+}
 export interface RPCLogsCollection {
   address: string;
   blockHash: string;
@@ -75,19 +79,7 @@ export interface LogsCollection {
   transaction_index: number;
 }
 
-export interface LogsCollection {
-  address: string;
-  block_hash: string;
-  block_number: number;
-  data: string;
-  log_index: number;
-  removed: boolean;
-  topics: string[];
-  transaction_hash: string;
-  transaction_index: number;
-}
-
-export interface LandCollection {
+export interface LandCollection extends UpdatedAt {
   token_id: string;
   owner: string;
   lon?: number;
@@ -97,21 +89,44 @@ export interface LandCollection {
   meta_intr?: string;
   meta_cover?: string;
   meta_link?: string;
-  updated_at: string;
 }
 
-export interface ERC721Collection {
+export interface LandAuctionCollection extends UpdatedAt {
+  token_id: string;
+  seller: string;
+  starting_price_in_token: string;
+  ending_price_in_token: string;
+  duration: string; // in second
+  token: string;
+  status: 'created' | 'successful' | 'cancelled';
+  winner?: string;
+  total_price?: string;
+  bids?: Array<LandAuctionBidCollection>;
+}
+
+export interface LandAuctionBidCollection extends UpdatedAt {
+  token_id: string;
+  last_bidder: string;
+  last_referer: string;
+  last_record: string;
+  token_address: string;
+  bid_start_at: string;
+  return_to_last_bidder: string;
+}
+
+export interface ERC721Collection extends UpdatedAt {
   token_id: string;
   owner: string;
-  updated_at: string;
 }
 
-export type ParserHandle = (db: Db, description: LogDescription, log: LogsCollection, options?: BulkWriteOptions) => Promise<void>;
+export type ParserHandle = (db: Db, description: LogDescription, log: LogsCollection, options?: BulkWriteOptions) => Promise<any>;
+
+export interface Parser {
+  interface: Interface;
+  events: Record<string, ParserHandle>;
+}
 
 export type ParserBundle = Record<
   string, // address lowercase
-  {
-    interface: Interface;
-    events: Record<string, ParserHandle>;
-  }
+  Parser
 >;

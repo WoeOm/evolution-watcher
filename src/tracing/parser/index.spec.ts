@@ -1,5 +1,5 @@
 import { collections } from '../types';
-import { parseTokenId } from './index';
+import { parseTokenId } from './land';
 
 describe('Parser', () => {
   describe('parseTokenId', () => {
