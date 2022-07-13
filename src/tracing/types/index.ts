@@ -27,6 +27,7 @@ export const collections = {
   EQUIPMENT: 'equipment',
   OTHER: 'other',
   LAND_AUCTION: 'land_auction',
+  APOSTLE_AUCTION: 'apostle_auction',
 } as const;
 
 export type LandId = typeof landId[keyof typeof landId];
@@ -101,10 +102,35 @@ export interface LandAuctionCollection extends UpdatedAt {
   status: 'created' | 'successful' | 'cancelled';
   winner?: string;
   total_price?: string;
+  start_at?: string; // TODO
   bids?: Array<LandAuctionBidCollection>;
 }
 
 export interface LandAuctionBidCollection extends UpdatedAt {
+  token_id: string;
+  last_bidder: string;
+  last_referer: string;
+  last_record: string;
+  token_address: string;
+  bid_start_at: string;
+  return_to_last_bidder: string;
+}
+
+export interface ApostleAuctionCollection extends UpdatedAt {
+  token_id: string;
+  seller: string;
+  starting_price_in_token: string;
+  ending_price_in_token: string;
+  duration: string; // in second
+  token: string;
+  status: 'created' | 'successful' | 'cancelled';
+  winner?: string;
+  total_price?: string;
+  start_at: string;
+  bids?: Array<ApostleAuctionBidCollection>;
+}
+
+export interface ApostleAuctionBidCollection extends UpdatedAt {
   token_id: string;
   last_bidder: string;
   last_referer: string;

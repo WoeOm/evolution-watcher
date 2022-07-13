@@ -1,58 +1,12 @@
-import { LogDescription } from 'ethers/lib/utils';
-import { BigNumber } from 'ethers';
-import { BulkWriteOptions, Db, MongoDBNamespace, Timestamp } from 'mongodb';
-import { collections, ERC721Collection, LandAuctionCollection, ParserBundle, ParserHandle } from '../types';
-import { isZeroAddress } from '../utils/address';
-import { ObjectOwnershipIface, ClockAuctionV3Iface } from './abi/interface';
+import { BulkWriteOptions } from 'mongodb';
+import { ApostleAuctionCollection, collections, ParserBundle } from '../types';
+import { ClockAuctionV3Iface } from './abi/interface';
 import { address } from './address/crabtest';
-import { logger } from '../utils/logger';
-import { loggerError, parseTokenId } from './utils';
+import { loggerError } from './utils';
 
-export const landEventParser: ParserBundle = {
-  [address.OBJECTOWNERSHIP.toLowerCase()]: {
-    interface: ObjectOwnershipIface,
-    events: {
-      'Transfer(address,address,uint256)': async (db, description, log, options: BulkWriteOptions = {}) => {
-        const from = description.args[0].toLowerCase();
-        const to = description.args[1].toLowerCase();
-        const tokenId = description.args[2].toHexString();
-        const nftType = parseTokenId(tokenId);
-        const collection = db.collection<ERC721Collection>(nftType);
-
-        if (isZeroAddress(from)) {
-          await collection.insertOne(
-            {
-              owner: to,
-              token_id: tokenId,
-              updated_at: log.transaction_hash,
-            },
-            { ...options },
-          );
-          return;
-        }
-
-        const result = await collection.updateOne(
-          { token_id: tokenId },
-          [
-            {
-              $set: {
-                owner: to,
-                updated_at: log.transaction_hash,
-              },
-            },
-          ],
-          { upsert: true, ...options },
-        );
-
-        if (result.matchedCount !== 1) {
-          loggerError('LAND_CLOCK_AUCTION::Transfer', log, tokenId);
-        }
-      },
-    },
-  },
-
-  // LAND_CLOCK_AUCTION
-  [address.LAND_CLOCK_AUCTION.toLowerCase()]: {
+export const apostleEventParser: ParserBundle = {
+  // APOSTLE_CLOCK_AUCTION
+  [address.APOSTLE_CLOCK_AUCTION.toLowerCase()]: {
     interface: ClockAuctionV3Iface,
     events: {
       'AuctionCreated(uint256,address,uint256,uint256,uint256,address)': async (db, description, log, options: BulkWriteOptions = {}) => {
@@ -62,8 +16,9 @@ export const landEventParser: ParserBundle = {
         const endingPriceInToken = description.args.endingPriceInToken.toString();
         const duration = description.args.duration.toString();
         const token = description.args.token.toLowerCase();
+        const startedAt = description.args.startedAt.toString();
 
-        const collection = db.collection<LandAuctionCollection>(collections.LAND_AUCTION);
+        const collection = db.collection<ApostleAuctionCollection>(collections.APOSTLE_AUCTION);
 
         await collection.insertOne(
           {
@@ -75,13 +30,14 @@ export const landEventParser: ParserBundle = {
             token: token,
             updated_at: log.transaction_hash,
             status: 'created',
+            start_at: startedAt,
           },
           { ...options },
         );
         return;
       },
       'AuctionSuccessful(uint256,uint256,address)': async (db, description, log, options: BulkWriteOptions = {}) => {
-        const collection = db.collection<LandAuctionCollection>(collections.LAND_AUCTION);
+        const collection = db.collection<ApostleAuctionCollection>(collections.APOSTLE_AUCTION);
         const tokenId = description.args.tokenId.toHexString();
         const totalPrice = description.args.totalPrice.toString();
         const winner = description.args.winner.toLowerCase();
@@ -102,11 +58,11 @@ export const landEventParser: ParserBundle = {
         );
 
         if (result.matchedCount !== 1) {
-          loggerError('LAND_CLOCK_AUCTION::AuctionSuccessful', log, tokenId);
+          loggerError('APOSTLE_CLOCK_AUCTION::AuctionSuccessful', log, tokenId);
         }
       },
       'AuctionCancelled(uint256)': async (db, description, log, options: BulkWriteOptions = {}) => {
-        const collection = db.collection<LandAuctionCollection>(collections.LAND_AUCTION);
+        const collection = db.collection<ApostleAuctionCollection>(collections.APOSTLE_AUCTION);
         const tokenId = description.args.tokenId.toHexString();
 
         const result = await collection.updateOne(
@@ -123,11 +79,11 @@ export const landEventParser: ParserBundle = {
         );
 
         if (result.matchedCount !== 1) {
-          loggerError('LAND_CLOCK_AUCTION::AuctionCancelled', log, tokenId);
+          loggerError('APOSTLE_CLOCK_AUCTION::AuctionCancelled', log, tokenId);
         }
       },
       'NewBid(uint256,address,address,uint256,address,uint256,uint256)': async (db, description, log, options: BulkWriteOptions = {}) => {
-        const collection = db.collection<LandAuctionCollection>(collections.LAND_AUCTION);
+        const collection = db.collection<ApostleAuctionCollection>(collections.APOSTLE_AUCTION);
 
         const tokenId = description.args.tokenId.toHexString();
         const lastBidder = description.args.lastBidder.toLowerCase();
@@ -157,16 +113,9 @@ export const landEventParser: ParserBundle = {
         );
 
         if (result.matchedCount !== 1) {
-          loggerError('LAND_CLOCK_AUCTION::NewBid', log, tokenId);
+          loggerError('APOSTLE_CLOCK_AUCTION::NewBid', log, tokenId);
         }
       },
-    },
-  },
-
-  [address.LAND_RESOURCE.toLowerCase()]: {
-    interface: ObjectOwnershipIface,
-    events: {
-      'StartMining(uint256,uint256,address,uint256)': async (db, description, log, options: BulkWriteOptions = {}) => {},
     },
   },
 };
